@@ -1,0 +1,43 @@
+{
+  "name": "denticare",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "setup:admin": "node scripts/setup-admin.mjs",
+    "add:admin": "node scripts/add-admin.mjs",
+    "setup:dentist": "node scripts/setup-dentist.mjs",
+    "setup:receptionist": "node scripts/setup-receptionist.mjs",
+    "setup:patients": "node scripts/setup-patients.mjs",
+    "setup:phone-auth": "node scripts/enable-phone-auth.mjs",
+    "setup:seed": "node scripts/seed-firestore.mjs",
+    "setup:storage": "node scripts/setup-storage.mjs",
+    "setup:backend": "npx -y firebase-tools@latest deploy --only firestore:rules,firestore:indexes --project denticare-app && node scripts/setup-storage.mjs",
+    "firebase:deploy": "npx -y firebase-tools@latest deploy --only firestore:rules,firestore:indexes,storage --project denticare-app",
+    "functions:install": "npm install --prefix functions",
+    "functions:deploy": "npm run functions:install && npx -y firebase-tools@latest deploy --only functions:onAppointmentStatusChanged,functions:onQueueStatusChanged --project denticare-app --force"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.18.0",
+    "browser-image-compression": "^2.0.2",
+    "chart.js": "^4.4.8",
+    "date-fns": "^4.1.0",
+    "firebase": "^11.6.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.2",
+    "pinia": "^3.0.1",
+    "vue": "^3.5.13",
+    "vue-chartjs": "^5.3.2",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.4",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "google-auth-library": "^10.7.0",
+    "tailwindcss": "^4.1.4",
+    "vite": "^6.3.2"
+  }
+}

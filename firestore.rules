@@ -1,0 +1,214 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function staffUserExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isActiveUser() {
+      return isSignedIn() && staffUserExists() && userDoc().data.active == true;
+    }
+
+    function hasRole(role) {
+      return isActiveUser() && userDoc().data.role == role;
+    }
+
+    function isAdmin() {
+      return hasRole('administrator');
+    }
+
+    function isDentist() {
+      return hasRole('dentist');
+    }
+
+    function isStaff() {
+      return isActiveUser() && userDoc().data.role in ['administrator', 'dentist', 'dental_assistant'];
+    }
+
+    function patientAccountExists() {
+      return exists(/databases/$(database)/documents/patient_accounts/$(request.auth.uid));
+    }
+
+    function patientAccount() {
+      return get(/databases/$(database)/documents/patient_accounts/$(request.auth.uid));
+    }
+
+    function isPatient() {
+      return isSignedIn()
+        && patientAccountExists()
+        && patientAccount().data.active == true;
+    }
+
+    function ownPatientId() {
+      return patientAccount().data.patientId;
+    }
+
+    function ownsPatient(patientId) {
+      return isPatient() && ownPatientId() == patientId;
+    }
+
+    function patientEditableFields() {
+      return ['contactNumber', 'address', 'emergencyContact', 'allergies', 'currentMedications', 'photoData', 'fcmTokens', 'fcmTokenUpdatedAt', 'updatedAt'];
+    }
+
+    function todayIsoDate() {
+      let t = request.time;
+      return string(t.year()) + '-' + pad2(t.month()) + '-' + pad2(t.day());
+    }
+
+    function pad2(n) {
+      return n < 10 ? '0' + string(n) : string(n);
+    }
+
+    function patientBookingDateAllowed() {
+      let d = request.resource.data.date;
+      let today = todayIsoDate();
+      return d > today || (d == today && request.resource.data.urgent == true);
+    }
+
+    function patientUrgentNotesOk() {
+      return request.resource.data.urgent != true
+        || (request.resource.data.notes is string && request.resource.data.notes.size() >= 10);
+    }
+
+    function isSelfRegistering() {
+      return isSignedIn() && !patientAccountExists() && !staffUserExists();
+    }
+
+    function validPatientRegistration() {
+      return request.resource.data.archived == false
+        && request.resource.data.firstName is string
+        && request.resource.data.firstName.size() > 0
+        && request.resource.data.lastName is string
+        && request.resource.data.lastName.size() > 0;
+    }
+
+    match /users/{userId} {
+      allow read: if (isSignedIn() && request.auth.uid == userId) || isStaff();
+      allow create: if isAdmin() || (
+        isSignedIn()
+        && request.auth.uid == userId
+        && !staffUserExists()
+        && request.resource.data.role == 'administrator'
+        && request.resource.data.active == true
+        && request.resource.data.email == request.auth.token.email
+      );
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'active']));
+      allow delete: if isAdmin();
+    }
+
+    match /patient_accounts/{accountId} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == accountId);
+      allow create: if isAdmin() || (
+        isSignedIn()
+        && request.auth.uid == accountId
+        && !patientAccountExists()
+        && request.resource.data.active == true
+        && request.resource.data.patientId is string
+      );
+      allow update, delete: if isAdmin();
+    }
+
+    match /patients/{patientId} {
+      allow read: if isStaff() || ownsPatient(patientId);
+      allow create: if isStaff() || (isSelfRegistering() && validPatientRegistration());
+      allow delete: if isStaff();
+      allow update: if isStaff() || (
+        ownsPatient(patientId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(patientEditableFields())
+      );
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if isStaff() || (isPatient() && resource.data.patientId == ownPatientId());
+      allow create: if isStaff() || (
+        isPatient()
+        && request.resource.data.patientId == ownPatientId()
+        && request.resource.data.status == 'pending'
+        && patientBookingDateAllowed()
+        && patientUrgentNotesOk()
+      );
+      allow update: if isStaff() || (
+        isPatient()
+        && resource.data.patientId == ownPatientId()
+        && resource.data.status in ['pending', 'approved']
+        && request.resource.data.status == 'cancelled'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+      );
+      allow delete: if isStaff();
+    }
+
+    match /queues/{queueId} {
+      allow read: if isStaff() || (isPatient() && resource.data.patientId == ownPatientId());
+      allow write: if isStaff();
+    }
+
+    match /queue_counters/{counterId} {
+      allow read, write: if isStaff();
+    }
+
+    match /odontograms/{patientId} {
+      allow read: if isStaff() || ownsPatient(patientId);
+      allow write: if isAdmin() || isDentist();
+
+      match /history/{historyId} {
+        allow read: if isStaff() || ownsPatient(patientId);
+        allow write: if isAdmin() || isDentist();
+      }
+    }
+
+    match /xrays/{xrayId} {
+      allow read: if isStaff() || (isPatient() && resource.data.patientId == ownPatientId());
+      allow write: if isStaff();
+    }
+
+    match /treatments/{treatmentId} {
+      allow read: if isStaff() || (isPatient() && resource.data.patientId == ownPatientId());
+      allow write: if isStaff();
+    }
+
+    match /billings/{billingId} {
+      allow read: if isStaff() || (isPatient() && resource.data.patientId == ownPatientId());
+      allow write: if isStaff();
+    }
+
+    match /reports/{reportId} {
+      allow read, write: if isAdmin() || isDentist();
+    }
+
+    match /settings/{settingId} {
+      allow read: if isStaff() || (
+        isPatient() && (settingId == 'clinic' || settingId == 'treatment_templates')
+      );
+      allow create: if isAdmin() || (
+        isSignedIn()
+        && settingId == 'clinic'
+        && !exists(/databases/$(database)/documents/settings/clinic)
+      ) || (
+        isStaff()
+        && settingId == 'treatment_templates'
+        && !exists(/databases/$(database)/documents/settings/treatment_templates)
+      );
+      allow update: if isAdmin() || (
+        isStaff() && settingId == 'treatment_templates'
+      );
+    }
+
+    match /activities/{activityId} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      allow update, delete: if isAdmin();
+    }
+  }
+}
