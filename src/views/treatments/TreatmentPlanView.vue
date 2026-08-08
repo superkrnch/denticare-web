@@ -25,7 +25,7 @@
       <template #cell-actions="{ item }">
         <div class="flex gap-2">
           <button class="text-primary-600 text-xs hover:underline" @click="openModal(item)">Edit</button>
-          <button v-if="item.status !== 'completed'" class="text-teal-600 text-xs hover:underline" @click="markComplete(item.id)">Complete</button>
+          <button v-if="item.status !== 'completed'" class="text-teal-600 text-xs hover:underline" @click="markComplete(item)">Complete</button>
           <button class="text-red-600 text-xs hover:underline" @click="handleDelete(item.id)">Delete</button>
         </div>
       </template>
@@ -79,20 +79,24 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useTreatmentsStore } from '@/stores/treatments'
 import { usePatientsStore } from '@/stores/patients'
 import { useSettingsStore } from '@/stores/settings'
 import { useToastStore } from '@/stores/toast'
+import { useBillingStore } from '@/stores/billing'
 import { TREATMENT_STATUS } from '@/constants'
 import { fullName, formatCurrency } from '@/utils/helpers'
 import DataTable from '@/components/common/DataTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 
+const router = useRouter()
 const treatments = useTreatmentsStore()
 const patients = usePatientsStore()
 const settings = useSettingsStore()
 const toast = useToastStore()
+const billingStore = useBillingStore()
 
 const patientFilter = ref('')
 const statusFilter = ref('')
@@ -192,10 +196,23 @@ async function handleSubmit() {
   }
 }
 
-async function markComplete(id) {
-  await treatments.markComplete(id)
+async function markComplete(treatment) {
+  await treatments.markComplete(treatment.id)
   await treatments.fetchAll()
   toast.success('Treatment marked complete.')
+
+  const invoiceData = {
+    patientId: treatment.patientId,
+    treatments: [{
+      procedureName: treatment.procedureName,
+      toothNumber: treatment.toothNumber,
+      cost: treatment.cost,
+      presetId: '',
+    }],
+  }
+
+  billingStore.setPendingInvoice(invoiceData)
+  router.push({ name: 'billing' })
 }
 
 async function handleDelete(id) {

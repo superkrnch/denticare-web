@@ -162,6 +162,14 @@ onMounted(async () => {
     appointments.fetchAppointments(),
     settings.loadTreatmentTemplates(),
   ])
+
+  if (billing.pendingInvoice) {
+    form.value.patientId = billing.pendingInvoice.patientId
+    onPatientChange()
+    form.value.treatments = billing.pendingInvoice.treatments
+    showModal.value = true
+    billing.setPendingInvoice(null)
+  }
 })
 
 function presetCost(serviceType) {

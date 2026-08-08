@@ -13,6 +13,11 @@ import { useAuthStore } from './auth'
 export const useBillingStore = defineStore('billing', () => {
   const billings = ref([])
   const loading = ref(false)
+  const pendingInvoice = ref(null)
+
+  function setPendingInvoice(data) {
+    pendingInvoice.value = data
+  }
 
   function computePaymentStatus(total, paid) {
     if (paid <= 0) return PAYMENT_STATUS.UNPAID
@@ -136,5 +141,6 @@ export const useBillingStore = defineStore('billing', () => {
   return {
     billings, loading, fetchBillings, fetchByPatient, createInvoice,
     recordPayment, getMonthlyRevenue, computePaymentStatus,
+    pendingInvoice, setPendingInvoice,
   }
 })
