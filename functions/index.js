@@ -64,3 +64,30 @@ exports.onQueueStatusChanged = onDocumentUpdated(
     })
   },
 )
+
+const { onDocumentCreated } = require('firebase-functions/v2/firestore')
+const admin = require('firebase-admin')
+
+// Notify staff topic when a new appointment is created (useful for web clients subscribed to 'staff')
+exports.onAppointmentCreatedNotifyStaff = onDocumentCreated(
+  { document: 'appointments/{appointmentId}', ...functionOptions },
+  async (event) => {
+    const data = event.data?.data()
+    if (!data) return
+
+    const title = 'New appointment'
+    const body = `${data.patientName || 'Patient'} — ${data.serviceType || 'Visit'} on ${data.date || ''} ${data.time || ''}`
+
+    const message = {
+      notification: { title, body },
+      data: { type: 'appointment_created', appointmentId: event.params.appointmentId || '' },
+      topic: 'staff',
+    }
+
+    try {
+      await admin.messaging().send(message)
+    } catch (err) {
+      console.error('Failed sending staff notification', err)
+    }
+  },
+)

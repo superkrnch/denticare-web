@@ -7,6 +7,7 @@ import {
 import { db } from '@/firebase/config'
 import { COLLECTIONS } from '@/constants'
 import { useActivityStore } from './activities'
+import { useToastStore } from './toast'
 
 function calculateAge(birthdate) {
   if (!birthdate) return ''
@@ -56,6 +57,8 @@ export const usePatientsStore = defineStore('patients', () => {
     delete payload.age
     const ref = await addDoc(collection(db, COLLECTIONS.PATIENTS), payload)
     await activities.log('patient', `Registered patient ${data.firstName} ${data.lastName}`, { patientId: ref.id })
+    const toast = useToastStore()
+    toast.success(`Registered patient ${data.firstName} ${data.lastName}.`)
     return ref.id
   }
 
@@ -66,6 +69,8 @@ export const usePatientsStore = defineStore('patients', () => {
     delete payload.id
     await updateDoc(doc(db, COLLECTIONS.PATIENTS, id), payload)
     await activities.log('patient', `Updated patient ${data.firstName} ${data.lastName}`, { patientId: id })
+    const toast = useToastStore()
+    toast.success(`Updated patient ${data.firstName} ${data.lastName}.`)
   }
 
   async function archivePatient(id) {
@@ -74,6 +79,8 @@ export const usePatientsStore = defineStore('patients', () => {
       updatedAt: serverTimestamp(),
     })
     patients.value = patients.value.filter((p) => p.id !== id)
+    const toast = useToastStore()
+    toast.info('Patient archived.')
   }
 
   function searchPatients(term = '', filters = {}) {

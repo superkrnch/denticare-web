@@ -1,6 +1,16 @@
 <template>
   <div>
     <div class="mb-4">
+      <div class="mb-2">
+        <label class="label">Recently added</label>
+        <div class="flex gap-2 flex-wrap">
+          <button v-for="p in recentPatients" :key="p.id" class="btn-secondary px-2 py-1 text-xs" @click="selectRecent(p.id)">
+            {{ fullName(p) }}
+          </button>
+          <span v-if="!recentPatients.length" class="text-sm text-slate-500">No recent patients</span>
+        </div>
+      </div>
+
       <label class="label">Select Patient</label>
       <select v-model="selectedPatientId" class="input max-w-md" @change="loadChart">
         <option value="">Choose a patient...</option>
@@ -172,6 +182,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { collection, query as q, where, orderBy, limit, getDocs } from 'firebase/firestore'
+import { db } from '@/firebase/config'
 import { Smile, X } from '@lucide/vue'
 import { usePatientsStore } from '@/stores/patients'
 import { useOdontogramStore } from '@/stores/odontogram'
@@ -220,6 +232,36 @@ const statusLabels = TOOTH_STATUS_LABELS
 const statusColors = TOOTH_STATUS_COLORS
 const dotColors = TOOTH_STATUS_DOT_COLORS
 const patientList = computed(() => patients.patients.filter((p) => !p.archived))
+const recentPatients = computed(() => {
+  return patients.patients
+    .filter((p) => !p.archived && p.createdAt)
+    .sort((a, b) => {
+      const ta = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime()
+      const tb = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime()
+      return tb - ta
+    })
+    .slice(0, 5)
+})
+
+const recentThumbnails = ref({})
+
+async function loadRecentThumbnails() {
+  const list = recentPatients.value || []
+  const map = {}
+  await Promise.all(list.map(async (p) => {
+    try {
+      const qr = q(collection(db, 'xrays'), where('patientId', '==', p.id), orderBy('uploadDate', 'desc'), limit(1))
+      const snap = await getDocs(qr)
+      if (!snap.empty) {
+        const d = snap.docs[0].data()
+        map[p.id] = d.fileUrl || ''
+      }
+    } catch {
+      // ignore per-patient thumbnail errors
+    }
+  }))
+  recentThumbnails.value = map
+}
 
 const toothHistory = computed(() =>
   selectedTooth.value
@@ -228,6 +270,14 @@ const toothHistory = computed(() =>
 )
 
 onMounted(() => patients.fetchPatients())
+onMounted(() => {
+  patients.fetchPatients().then(loadRecentThumbnails)
+})
+
+async function selectRecent(id) {
+  selectedPatientId.value = id
+  await loadChart()
+}
 
 async function loadChart() {
   selectedTooth.value = null

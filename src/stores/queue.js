@@ -4,6 +4,7 @@ import {
   collection, doc, addDoc, updateDoc, query,
   where, orderBy, serverTimestamp, onSnapshot, writeBatch, runTransaction,
 } from 'firebase/firestore'
+import { useToastStore } from './toast'
 import { db } from '@/firebase/config'
 import { COLLECTIONS, QUEUE_STATUS } from '@/constants'
 import {
@@ -125,6 +126,8 @@ export const useQueueStore = defineStore('queue', () => {
     })
 
     await activities.log('queue', `Queue #${nextNumber} generated for ${patientName}`, { patientId })
+    const toast = useToastStore()
+    toast.success(`Queue #${nextNumber} created for ${patientName}.`)
     return { id: ref.id, queueNumber: nextNumber }
   }
 
@@ -153,6 +156,9 @@ export const useQueueStore = defineStore('queue', () => {
       checkedInAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
+
+    const toast = useToastStore()
+    toast.success(`${appointment.patientName} checked in — queue #${result.queueNumber}.`)
 
     return { ...result, alreadyInQueue: false }
   }
@@ -188,6 +194,8 @@ export const useQueueStore = defineStore('queue', () => {
     })
     await batch.commit()
     await notifyPatientCalled(next)
+    const toast = useToastStore()
+    toast.info(`Calling queue #${next.queueNumber} — ${next.patientName}.`)
     return next
   }
 
@@ -210,6 +218,8 @@ export const useQueueStore = defineStore('queue', () => {
     })
     await batch.commit()
     await notifyPatientCalled(item)
+    const toast = useToastStore()
+    toast.info(`Now serving queue #${item.queueNumber} — ${item.patientName}.`)
   }
 
   async function markCompleted(id) {

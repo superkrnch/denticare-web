@@ -42,10 +42,7 @@
         </div>
         <div>
           <label class="label">Procedure preset</label>
-          <select v-model="selectedTemplateId" class="input" @change="applyTemplate">
-            <option value="">Choose a preset (optional)</option>
-            <option v-for="t in presets" :key="t.id" :value="t.id">{{ t.name }} — {{ formatCurrency(t.defaultCost) }}</option>
-          </select>
+          <ScrollableDropdown v-model="selectedTemplateId" :items="[{ id: '', name: 'Choose a preset (optional)' }, ...presets]" labelField="name" valueField="id" />
         </div>
         <div>
           <label class="label">Procedure *</label>
@@ -90,6 +87,7 @@ import { fullName, formatCurrency } from '@/utils/helpers'
 import DataTable from '@/components/common/DataTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
+import ScrollableDropdown from '@/components/common/ScrollableDropdown.vue'
 
 const router = useRouter()
 const treatments = useTreatmentsStore()

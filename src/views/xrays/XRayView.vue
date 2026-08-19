@@ -1,16 +1,49 @@
 <template>
   <div>
-    <div class="mb-4 flex flex-col gap-3 sm:flex-row">
-      <select v-model="selectedPatientId" class="input max-w-md" @change="loadXrays">
-        <option value="">Select patient...</option>
-        <option v-for="p in patientList" :key="p.id" :value="p.id">{{ fullName(p) }}</option>
-      </select>
-      <button v-if="selectedPatientId" class="btn-primary" @click="showUpload = true">+ Upload X-Ray</button>
+    <div class="mb-4">
+      <div class="mb-2">
+        <label class="label">Recently added</label>
+        <div class="flex gap-2 flex-wrap items-center">
+          <button v-for="p in recentPatients" :key="p.id" class="btn-secondary px-2 py-1 text-xs" @click="selectRecent(p.id)">
+            {{ fullName(p) }}
+          </button>
+          <span v-if="!recentPatients.length" class="text-sm text-slate-500">No recent patients</span>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <select v-model="selectedPatientId" class="input max-w-md" @change="loadXrays">
+          <option value="">Select patient...</option>
+          <option v-for="p in patientList" :key="p.id" :value="p.id">{{ fullName(p) }}</option>
+        </select>
+        <button v-if="selectedPatientId" class="btn-primary" @click="showUpload = true">+ Upload X-Ray</button>
+      </div>
     </div>
 
-    <div v-if="selectedPatientId">
-      <div v-if="xrays.xrays.length" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div v-for="xray in xrays.xrays" :key="xray.id" class="card overflow-hidden">
+    <!-- ALL PATIENTS GALLERY (front page) -->
+    <div class="mb-6">
+      <div class="mb-2 flex items-center justify-between">
+        <h3 class="section-title mb-0">All Patients - X-Ray Gallery</h3>
+        <div class="flex items-center gap-4">
+          <!-- simplified control: show label when global, button to return to global when viewing a patient's xrays -->
+          <template v-if="showGlobalGallery">
+            <button
+              type="button"
+              class="btn-secondary text-sm"
+              :disabled="!selectedPatientId"
+              @click="switchToPatientView"
+            >
+              Show only selected patient's X-Rays
+            </button>
+          </template>
+          <template v-else>
+            <button type="button" class="btn-secondary text-sm" @click="showGlobalGallery = true">Show all patients</button>
+          </template>
+        </div>
+      </div>
+
+      <div v-if="displayedGalleryXrays.length" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div v-for="xray in displayedGalleryXrays" :key="xray.id" class="card overflow-hidden">
           <div class="cursor-pointer" @click="previewXray = xray">
             <XrayImage
               :xray="xray"
@@ -22,7 +55,7 @@
           </div>
           <div class="p-4">
             <p class="font-medium capitalize">{{ xray.xrayType }}</p>
-            <p class="text-xs text-slate-500">{{ xray.dentistName }} · {{ formatDate(xray.uploadDate) }}</p>
+            <p class="text-xs text-slate-500">{{ getPatientFullName(xray.patientId) }} · {{ xray.dentistName }} · {{ formatDate(xray.uploadDate) }}</p>
             <p v-if="xrays.isImageMissing(xray)" class="mt-2 text-xs text-amber-600 dark:text-amber-400">
               Image unavailable — delete and re-upload.
             </p>
@@ -41,14 +74,8 @@
           </div>
         </div>
       </div>
-      <EmptyState v-else title="No X-rays uploaded" description="Upload the first image for this patient." :icon="ScanLine" />
+      <EmptyState v-else title="No X-rays available" description="No X-rays found for any patient." :icon="ScanLine" />
     </div>
-    <EmptyState
-      v-else
-      title="Select a patient"
-      description="Choose a patient to manage their X-ray records."
-      :icon="ScanLine"
-    />
 
     <BaseModal :show="showUpload" title="Upload X-Ray" @close="closeUpload">
       <form class="space-y-4" @submit.prevent="handleUpload">
@@ -112,8 +139,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { collection, query as q, where, orderBy, limit, getDocs } from 'firebase/firestore'
+import { db } from '@/firebase/config'
 import { ScanLine, LoaderCircle } from '@lucide/vue'
+import { COLLECTIONS } from '@/constants'
 import { usePatientsStore } from '@/stores/patients'
 import { useXraysStore } from '@/stores/xrays'
 import { useToastStore } from '@/stores/toast'
@@ -141,11 +171,105 @@ const compressionError = ref('')
 const uploadForm = ref({ xrayType: 'panoramic', notes: '' })
 const xrayTypes = XRAY_TYPES
 const patientList = computed(() => patients.patients.filter((p) => !p.archived))
+const recentPatients = computed(() => {
+  return patients.patients
+    .filter((p) => !p.archived && p.createdAt)
+    .sort((a, b) => {
+      const ta = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime()
+      const tb = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime()
+      return tb - ta
+    })
+    .slice(0, 5)
+})
 
-onMounted(() => patients.fetchPatients())
+const recentThumbnails = ref({})
+// toggle to show global gallery (all patients). Default: true
+const showGlobalGallery = ref(true)
+const allXrays = ref([])
+
+const displayedXrays = computed(() => xrays.xrays || [])
+
+const displayedGalleryXrays = computed(() => {
+  if (showGlobalGallery.value) return allXrays.value || []
+  // when global gallery is off, show selected patient's xrays (if any)
+  return selectedPatientId.value ? (xrays.xrays || []) : []
+})
+
+async function fetchAllXrays() {
+  try {
+    const snap = await getDocs(q(collection(db, COLLECTIONS.XRAYS), orderBy('uploadDate', 'desc')))
+    const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    allXrays.value = items.filter((x) => !x.archived)
+  } catch (e) {
+    console.error('Failed to load all xrays', e)
+    allXrays.value = []
+  }
+}
+
+watch(showGlobalGallery, (v) => {
+  if (v) fetchAllXrays()
+  else if (selectedPatientId.value) loadXrays()
+})
+
+async function loadRecentThumbnails() {
+  const list = recentPatients.value || []
+  const map = {}
+  await Promise.all(list.map(async (p) => {
+    try {
+      const qr = q(collection(db, 'xrays'), where('patientId', '==', p.id), orderBy('uploadDate', 'desc'), limit(1))
+      const snap = await getDocs(qr)
+      if (!snap.empty) {
+        const d = snap.docs[0].data()
+        map[p.id] = d.fileUrl || ''
+      }
+    } catch {
+      // ignore per-patient thumbnail errors
+    }
+  }))
+  recentThumbnails.value = map
+}
+
+onMounted(async () => {
+  await patients.fetchPatients()
+  loadRecentThumbnails()
+  // fetch all xrays by default for front-page gallery
+  await fetchAllXrays()
+})
 
 async function loadXrays() {
   if (selectedPatientId.value) await xrays.fetchByPatient(selectedPatientId.value)
+}
+
+async function selectRecent(id) {
+  selectedPatientId.value = id
+  await loadXrays()
+}
+
+// When a patient is selected, switch the gallery to show only that patient's X-rays
+watch(selectedPatientId, (id) => {
+  if (id) showGlobalGallery.value = false
+})
+
+function switchToPatientView() {
+  if (!selectedPatientId.value) {
+    toast.info('Select a patient first to view their X-rays.')
+    return
+  }
+  showGlobalGallery.value = false
+  loadXrays()
+}
+
+const selectedPatient = computed(() => patients.patients.find((p) => p.id === selectedPatientId.value) || null)
+const selectedPatientInitials = computed(() => {
+  const p = selectedPatient.value
+  if (!p) return ''
+  const parts = [p.firstName, p.lastName].filter(Boolean)
+  return parts.map((s) => s[0]?.toUpperCase() ?? '').join('').slice(0, 2)
+})
+
+function getPatientFullName(id) {
+  const p = patients.patients.find((x) => x.id === id)
+  return p ? fullName(p) : 'Unknown'
 }
 
 function resetUploadForm() {

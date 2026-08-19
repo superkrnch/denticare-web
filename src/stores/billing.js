@@ -9,6 +9,7 @@ import { COLLECTIONS, PAYMENT_STATUS } from '@/constants'
 import { generateId } from '@/utils/helpers'
 import { useActivityStore } from './activities'
 import { useAuthStore } from './auth'
+import { useToastStore } from './toast'
 
 export const useBillingStore = defineStore('billing', () => {
   const billings = ref([])
@@ -91,6 +92,8 @@ export const useBillingStore = defineStore('billing', () => {
     }
     const ref = await addDoc(collection(db, COLLECTIONS.BILLINGS), payload)
     await activities.log('billing', `Created invoice ${payload.invoiceNumber}`, { patientId: data.patientId })
+    const toast = useToastStore()
+    toast.success(`Invoice ${payload.invoiceNumber} created for ${data.patientName}.`)
     return ref.id
   }
 
@@ -124,6 +127,8 @@ export const useBillingStore = defineStore('billing', () => {
     })
 
     await activities.log('billing', `Recorded payment on ${data.invoiceNumber}`, { patientId: data.patientId })
+    const toast = useToastStore()
+    toast.success(`Recorded payment ${paymentAmount} for ${data.patientName}.`)
   }
 
   function getMonthlyRevenue() {

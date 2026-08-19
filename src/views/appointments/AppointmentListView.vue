@@ -83,9 +83,11 @@ import { format } from 'date-fns'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { usePatientsStore } from '@/stores/patients'
 import { useUsersStore } from '@/stores/users'
+import { useAuthStore } from '@/stores/auth'
 import { useQueueStore } from '@/stores/queue'
 import { useSettingsStore } from '@/stores/settings'
 import { useToastStore } from '@/stores/toast'
+import { useEditingStore } from '@/stores/editing'
 import { APPOINTMENT_STATUS } from '@/constants'
 import { fullName, formatDate, formatCurrency } from '@/utils/helpers'
 import { availabilityMessage } from '@/utils/availability'
@@ -93,6 +95,7 @@ import SearchBar from '@/components/common/SearchBar.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
+import ScrollableDropdown from '@/components/common/ScrollableDropdown.vue'
 
 const appointments = useAppointmentsStore()
 const patients = usePatientsStore()
@@ -100,6 +103,8 @@ const users = useUsersStore()
 const queue = useQueueStore()
 const settings = useSettingsStore()
 const toast = useToastStore()
+const auth = useAuthStore()
+const editing = useEditingStore()
 
 const search = ref('')
 const statusFilter = ref('')
@@ -149,6 +154,9 @@ onMounted(async () => {
     settings.loadTreatmentTemplates(),
   ])
   dentistList.value = await users.getDentists()
+  // start realtime appointment listener (shows toast for new appointments from other users)
+  appointments.initRealtime()
+  // presence-toasts disabled: only appointment-created notifications are shown
 })
 
 function onServiceChange() {
@@ -176,6 +184,8 @@ function openNew() {
     form.value.estimatedCost = first.defaultCost
   }
   applyClinicDentist()
+  // announce presence
+  editing.startEditing(null)
   showModal.value = true
 }
 
@@ -187,6 +197,8 @@ function onPatientChange() {
 function openEdit(item) {
   editingId.value = item.id
   form.value = { ...item }
+  // announce presence for this appointment
+  editing.startEditing(item.id)
   showModal.value = true
 }
 
@@ -194,6 +206,8 @@ function closeModal() {
   showModal.value = false
   editingId.value = null
   form.value = defaultForm()
+  // clear presence when closing
+  editing.stopEditing()
 }
 
 async function handleSubmit() {
@@ -218,12 +232,10 @@ async function handleSubmit() {
     await appointments.fetchAppointments()
     closeModal()
   } catch (e) {
-    toast.error(e.message)
-  } finally {
-    saving.value = false
-  }
-}
-
+        <div>
+          <label class="label">Procedure *</label>
+          <ScrollableDropdown v-model="form.serviceType" :items="procedureOptions" labelField="name" valueField="name" />
+        </div>
 async function updateStatus(id, status) {
   await appointments.updateStatus(id, status)
   await appointments.fetchAppointments()

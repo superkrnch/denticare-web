@@ -190,4 +190,5 @@ export const COLLECTIONS = {
   REPORTS: 'reports',
   SETTINGS: 'settings',
   ACTIVITIES: 'activities',
+  EDITING: 'editing_appointments',
 }

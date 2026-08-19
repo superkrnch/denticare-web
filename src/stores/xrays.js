@@ -16,6 +16,7 @@ import {
 } from '@/utils/localXrayStorage'
 import { useAuthStore } from './auth'
 import { useActivityStore } from './activities'
+import { useToastStore } from './toast'
 
 export const useXraysStore = defineStore('xrays', () => {
   const xrays = ref([])
@@ -60,8 +61,9 @@ export const useXraysStore = defineStore('xrays', () => {
       const snap = await getDocs(
         query(collection(db, COLLECTIONS.XRAYS), where('patientId', '==', patientId), orderBy('uploadDate', 'desc')),
       )
+      // filter out archived x-rays (soft-deleted) on client side
       const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-      xrays.value = items
+      xrays.value = items.filter((x) => !x.archived)
       await hydrateLocalImages(items)
     } finally {
       loading.value = false
@@ -102,20 +104,16 @@ export const useXraysStore = defineStore('xrays', () => {
     })
 
     await activities.log('xray', `Uploaded ${xrayType} x-ray`, { patientId })
+    const toast = useToastStore()
+    toast.success(`${xrayType} x-ray uploaded for patient.`)
     return docRef.id
   }
 
+  // soft-delete x-ray record; actual storage deletion should be performed by admin purge
   async function deleteXray(xray) {
     const activities = useActivityStore()
 
-    if (xray.filePath) {
-      try {
-        await deleteObject(storageRef(storage, xray.filePath))
-      } catch {
-        // file may already be deleted
-      }
-    }
-
+    // remove local cached image URLs and local storage if present
     if (xray.storageType === 'local') {
       await deleteLocalXrayImage(xray.id)
       if (localImageUrls.value[xray.id]) {
@@ -125,9 +123,12 @@ export const useXraysStore = defineStore('xrays', () => {
       }
     }
 
-    await deleteDoc(doc(db, COLLECTIONS.XRAYS, xray.id))
+    // mark as archived instead of hard delete
+    await updateDoc(doc(db, COLLECTIONS.XRAYS, xray.id), { archived: true, deletedAt: serverTimestamp(), updatedAt: serverTimestamp() })
     xrays.value = xrays.value.filter((x) => x.id !== xray.id)
-    await activities.log('xray', 'Deleted x-ray record', { patientId: xray.patientId })
+    await activities.log('xray', 'Archived x-ray record', { patientId: xray.patientId })
+    const toast = useToastStore()
+    toast.success('X-ray archived.')
   }
 
   return {
