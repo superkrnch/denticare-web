@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { playNotificationSound } from '@/utils/notificationSound'
 
 export const useToastStore = defineStore('toast', () => {
   const toasts = ref([])
   let id = 0
 
-  function show(message, type = 'success', duration = 4000) {
+  function show(message, type = 'success', duration = 4000, { sound = false } = {}) {
+    if (sound) playNotificationSound()
     const toastId = ++id
     toasts.value.push({ id: toastId, message, type })
     setTimeout(() => remove(toastId), duration)
@@ -17,8 +19,13 @@ export const useToastStore = defineStore('toast', () => {
 
   function success(message) { show(message, 'success') }
   function error(message) { show(message, 'error', 6000) }
-  function info(message) { show(message, 'info') }
-  function warning(message) { show(message, 'warning') }
+  function info(message, options = {}) { show(message, 'info', 4000, options) }
+  function warning(message, options = {}) { show(message, 'warning', 5000, options) }
 
-  return { toasts, show, remove, success, error, info, warning }
+  /** Alert toast with notification sound — for incoming realtime events. */
+  function notify(message, type = 'info', duration = 5000) {
+    show(message, type, duration, { sound: true })
+  }
+
+  return { toasts, show, remove, success, error, info, warning, notify }
 })

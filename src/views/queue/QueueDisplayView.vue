@@ -1,5 +1,11 @@
 <template>
-  <div class="queue-display" :class="{ 'queue-display--pulse': justCalled }">
+  <div
+    class="queue-display"
+    :class="{
+      'queue-display--dark': isDark,
+      'queue-display--pulse': justCalled,
+    }"
+  >
     <div class="queue-display__glow" aria-hidden="true" />
 
     <header class="queue-display__header">
@@ -43,22 +49,40 @@
 
     <footer class="queue-display__footer">
       <p>{{ waitingCount }} patient{{ waitingCount === 1 ? '' : 's' }} waiting</p>
-      <button v-if="!isFullscreen" type="button" class="queue-display__fullscreen" @click="enterFullscreen">
-        Fullscreen
-      </button>
+      <div class="queue-display__footer-actions">
+        <button
+          type="button"
+          class="queue-display__theme"
+          :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+          :title="isDark ? 'Light mode' : 'Dark mode'"
+          @click="themeStore.toggleTheme()"
+        >
+          <Sun v-if="isDark" class="h-4 w-4" :stroke-width="1.75" />
+          <Moon v-else class="h-4 w-4" :stroke-width="1.75" />
+        </button>
+        <button v-if="!isFullscreen" type="button" class="queue-display__fullscreen" @click="enterFullscreen">
+          Fullscreen
+        </button>
+      </div>
     </footer>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { format } from 'date-fns'
+import { Moon, Sun } from '@lucide/vue'
 import { useQueueStore } from '@/stores/queue'
 import { useSettingsStore } from '@/stores/settings'
 import { useUsersStore } from '@/stores/users'
+import { useThemeStore } from '@/stores/theme'
 import { useClinicDentists } from '@/composables/useClinicDentists'
 import { playQueueChime } from '@/utils/queueNotify'
 import AppLogo from '@/components/common/AppLogo.vue'
+
+const themeStore = useThemeStore()
+const { isDark } = storeToRefs(themeStore)
 
 const queue = useQueueStore()
 const settings = useSettingsStore()
@@ -87,6 +111,12 @@ watch(servingNumber, (next, prev) => {
   }
 })
 
+watch(isDark, (dark) => {
+  document.documentElement.classList.toggle('dark', dark)
+  document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+  document.body.style.backgroundColor = dark ? '#020617' : '#f8fafc'
+}, { immediate: true })
+
 function enterFullscreen() {
   document.documentElement.requestFullscreen?.().catch(() => {})
 }
@@ -112,19 +142,64 @@ onUnmounted(() => {
   clearInterval(clockTimer)
   clearTimeout(pulseTimer)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
+  document.body.style.backgroundColor = ''
 })
 </script>
 
 <style scoped>
 .queue-display {
-  position: relative;
+  --qd-bg: #f8fafc;
+  --qd-text: #0f172a;
+  --qd-muted: #64748b;
+  --qd-subtle: #64748b;
+  --qd-accent: #0d9488;
+  --qd-live-bg: #ffffff;
+  --qd-live-text: #0f766e;
+  --qd-live-dot: #14b8a6;
+  --qd-clock: #334155;
+  --qd-number-from: #0f172a;
+  --qd-number-to: #0d9488;
+  --qd-empty: #94a3b8;
+  --qd-chip-border: #cbd5e1;
+  --qd-chip-bg: #ffffff;
+  --qd-btn-border: #cbd5e1;
+  --qd-btn-bg: #ffffff;
+  --qd-btn-text: #334155;
+  --qd-glow-1: rgb(13 148 136 / 0.14);
+  --qd-glow-2: rgb(20 184 166 / 0.08);
+
+  position: fixed;
+  inset: 0;
+  z-index: 0;
   display: flex;
-  min-height: 100vh;
+  min-height: 100dvh;
   flex-direction: column;
   overflow: hidden;
-  background: #020617;
-  color: #f8fafc;
+  background: var(--qd-bg);
+  color: var(--qd-text);
   padding: clamp(1.5rem, 3vw, 3rem);
+}
+
+.queue-display--dark {
+  --qd-bg: #020617;
+  --qd-text: #f8fafc;
+  --qd-muted: #94a3b8;
+  --qd-subtle: #94a3b8;
+  --qd-accent: #5eead4;
+  --qd-live-bg: #0f172a;
+  --qd-live-text: #5eead4;
+  --qd-live-dot: #2dd4bf;
+  --qd-clock: #cbd5e1;
+  --qd-number-from: #ffffff;
+  --qd-number-to: #99f6e4;
+  --qd-empty: #475569;
+  --qd-chip-border: #334155;
+  --qd-chip-bg: #0f172a;
+  --qd-btn-border: #334155;
+  --qd-btn-bg: #0f172a;
+  --qd-btn-text: #cbd5e1;
+  --qd-glow-1: rgb(13 148 136 / 0.22);
+  --qd-glow-2: rgb(20 184 166 / 0.12);
 }
 
 .queue-display__glow {
@@ -132,8 +207,8 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 60% 50% at 50% 40%, rgb(13 148 136 / 0.18), transparent 70%),
-    radial-gradient(ellipse 40% 30% at 80% 80%, rgb(20 184 166 / 0.08), transparent 60%);
+    radial-gradient(ellipse 60% 50% at 50% 40%, var(--qd-glow-1), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 80% 80%, var(--qd-glow-2), transparent 60%);
 }
 
 .queue-display--pulse .queue-display__number {
@@ -163,7 +238,7 @@ onUnmounted(() => {
 .queue-display__tagline {
   margin-top: 0.25rem;
   font-size: clamp(0.9rem, 1.5vw, 1.1rem);
-  color: #94a3b8;
+  color: var(--qd-subtle);
 }
 
 .queue-display__meta { text-align: right; }
@@ -173,19 +248,19 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.5rem;
   border-radius: 9999px;
-  background: rgb(15 23 42 / 0.8);
+  background: var(--qd-live-bg);
   padding: 0.35rem 0.85rem;
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.12em;
-  color: #5eead4;
+  color: var(--qd-live-text);
 }
 
 .queue-display__live-dot {
   height: 0.5rem;
   width: 0.5rem;
   border-radius: 9999px;
-  background: #2dd4bf;
+  background: var(--qd-live-dot);
   animation: live-blink 1.5s ease-in-out infinite;
 }
 
@@ -198,7 +273,7 @@ onUnmounted(() => {
   margin-top: 0.75rem;
   font-size: clamp(1.25rem, 2.5vw, 1.75rem);
   font-weight: 600;
-  color: #cbd5e1;
+  color: var(--qd-clock);
 }
 
 .queue-display__main {
@@ -220,7 +295,7 @@ onUnmounted(() => {
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: #5eead4;
+  color: var(--qd-accent);
 }
 
 .queue-display__number {
@@ -228,23 +303,23 @@ onUnmounted(() => {
   font-size: clamp(8rem, 22vw, 16rem);
   font-weight: 800;
   line-height: 1;
-  background: linear-gradient(180deg, #ffffff 0%, #99f6e4 100%);
+  background: linear-gradient(180deg, var(--qd-number-from) 0%, var(--qd-number-to) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 .queue-display__number--empty {
-  color: #475569;
   background: none;
-  -webkit-text-fill-color: #475569;
+  color: var(--qd-empty);
+  -webkit-text-fill-color: var(--qd-empty);
 }
 
 .queue-display__hint {
   margin-top: 1.5rem;
   max-width: 32rem;
   font-size: clamp(1rem, 2vw, 1.5rem);
-  color: #94a3b8;
+  color: var(--qd-subtle);
 }
 
 .queue-display__upnext { text-align: center; }
@@ -255,7 +330,7 @@ onUnmounted(() => {
   font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--qd-muted);
 }
 
 .queue-display__upnext-list {
@@ -271,8 +346,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 1rem;
-  border: 1px solid rgb(51 65 85 / 0.8);
-  background: rgb(15 23 42 / 0.7);
+  border: 1px solid var(--qd-chip-border);
+  background: var(--qd-chip-bg);
   padding: 0.75rem 1.25rem;
   font-size: clamp(1.5rem, 3vw, 2.5rem);
   font-weight: 700;
@@ -286,15 +361,41 @@ onUnmounted(() => {
   justify-content: space-between;
   gap: 1rem;
   font-size: clamp(0.9rem, 1.5vw, 1.1rem);
-  color: #64748b;
+  color: var(--qd-muted);
 }
 
+.queue-display__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.queue-display__theme,
 .queue-display__fullscreen {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 0.75rem;
-  border: 1px solid #334155;
-  background: rgb(15 23 42 / 0.8);
+  border: 1px solid var(--qd-btn-border);
+  background: var(--qd-btn-bg);
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
-  color: #cbd5e1;
+  color: var(--qd-btn-text);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.queue-display__theme:hover,
+.queue-display__fullscreen:hover {
+  filter: brightness(0.97);
+}
+
+.queue-display--dark .queue-display__theme:hover,
+.queue-display--dark .queue-display__fullscreen:hover {
+  filter: brightness(1.15);
+}
+
+.queue-display__theme {
+  padding: 0.5rem;
 }
 </style>

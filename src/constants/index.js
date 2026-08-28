@@ -191,4 +191,6 @@ export const COLLECTIONS = {
   SETTINGS: 'settings',
   ACTIVITIES: 'activities',
   EDITING: 'editing_appointments',
+  CHAT_ROOMS: 'chatRooms',
+  MESSAGES: 'messages',
 }

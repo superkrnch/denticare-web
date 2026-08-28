@@ -33,12 +33,17 @@ import ToastContainer from '@/components/common/ToastContainer.vue'
 import { usePageStore } from '@/stores/page'
 import { useQueueStore } from '@/stores/queue'
 import { useAuthStore } from '@/stores/auth'
+import { useAppointmentsStore } from '@/stores/appointments'
+import { useStaffNotifications } from '@/composables/useStaffNotifications'
 
 const route = useRoute()
 const pageStore = usePageStore()
 const queue = useQueueStore()
 const auth = useAuthStore()
+const appointments = useAppointmentsStore()
 const sidebarOpen = ref(false)
+
+useStaffNotifications()
 
 const pageTitle = computed(() => {
   if (pageStore.headerMatchesRoute(route.path)) {
@@ -56,8 +61,14 @@ const pageSubtitle = computed(() => {
 watch(() => route.fullPath, () => pageStore.clearHeader(), { flush: 'sync' })
 
 onMounted(() => {
-  if (auth.isAuthenticated) queue.subscribeToday()
+  if (auth.isAuthenticated) {
+    queue.subscribeToday()
+    appointments.initRealtime()
+  }
 })
 
-onUnmounted(() => queue.unsubscribeQueue())
+onUnmounted(() => {
+  queue.unsubscribeQueue()
+  appointments.stopRealtime()
+})
 </script>

@@ -1,6 +1,6 @@
 <template>
-  <div>
-    <div class="card p-6 mb-6">
+  <div class="page-scroll-layout">
+    <div class="card mb-6 shrink-0 p-6">
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
           <label class="label">Report Type</label>
@@ -27,7 +27,14 @@
       </div>
     </div>
 
-    <DataTable :columns="reportColumns" :items="reportData" :loading="loading" :empty-title="'Generate a report to view data'" />
+    <DataTable
+      class="page-scroll-table"
+      scrollable
+      :columns="reportColumns"
+      :items="reportData"
+      :loading="loading"
+      :empty-title="'Generate a report to view data'"
+    />
   </div>
 </template>
 

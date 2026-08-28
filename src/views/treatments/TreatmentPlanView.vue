@@ -1,13 +1,13 @@
 <template>
-  <div>
-    <div class="page-header">
+  <div class="page-scroll-layout">
+    <div class="page-header shrink-0">
       <router-link to="/treatments/presets" class="btn-secondary sm:ml-auto">
         Manage presets
       </router-link>
       <button class="btn-primary" @click="openModal()">+ New Treatment Plan</button>
     </div>
 
-    <div class="flex gap-3 mb-4">
+    <div class="mb-4 flex shrink-0 gap-3">
       <select v-model="patientFilter" class="input max-w-xs">
         <option value="">All Patients</option>
         <option v-for="p in patientList" :key="p.id" :value="p.id">{{ fullName(p) }}</option>
@@ -18,7 +18,13 @@
       </select>
     </div>
 
-    <DataTable :columns="columns" :items="filtered" :loading="treatments.loading">
+    <DataTable
+      class="page-scroll-table"
+      scrollable
+      :columns="columns"
+      :items="filtered"
+      :loading="treatments.loading"
+    >
       <template #cell-patientName="{ item }">{{ item.patientName }}</template>
       <template #cell-cost="{ item }">{{ formatCurrency(item.cost) }}</template>
       <template #cell-status="{ item }"><StatusBadge :status="item.status" /></template>

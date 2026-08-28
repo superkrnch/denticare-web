@@ -21,8 +21,18 @@
         :class="isActive(item.to) ? 'nav-item-active' : 'nav-item-inactive'"
         @click="$emit('close')"
       >
-        <component :is="item.icon" class="h-[18px] w-[18px] shrink-0" :stroke-width="1.75" />
-        <span>{{ item.label }}</span>
+        <span class="relative shrink-0">
+          <component :is="item.icon" class="h-[18px] w-[18px]" :stroke-width="1.75" />
+          <span
+            v-if="badgeCount(item.to) > 0"
+            class="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white ring-2"
+            :class="badgeClass(item.to)"
+            :aria-label="badgeLabel(item.to)"
+          >
+            {{ formatNavBadge(badgeCount(item.to)) }}
+          </span>
+        </span>
+        <span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
       </router-link>
     </nav>
 
@@ -58,9 +68,14 @@ import {
   BarChart3,
   UserCog,
   Settings,
+  MessageCircle,
 } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth'
+import { usePatientMessagesStore } from '@/stores/patientMessages'
+import { useAppointmentsStore } from '@/stores/appointments'
+import { useQueueStore } from '@/stores/queue'
 import { ROLES, ROLE_LABELS } from '@/constants'
+import { formatNavBadge, navBadgeClass, navBadgeCount, navBadgeLabel } from '@/utils/navBadges'
 import AppLogo from '@/components/common/AppLogo.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 
@@ -69,6 +84,23 @@ defineEmits(['close'])
 
 const route = useRoute()
 const auth = useAuthStore()
+const patientMessages = usePatientMessagesStore()
+const appointments = useAppointmentsStore()
+const queue = useQueueStore()
+
+const badgeSources = { patientMessages, appointments, queue }
+
+function badgeCount(path) {
+  return navBadgeCount(path, badgeSources)
+}
+
+function badgeLabel(path) {
+  return navBadgeLabel(path, badgeCount(path))
+}
+
+function badgeClass(path) {
+  return navBadgeClass(path)
+}
 
 const allNavItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: null },
@@ -83,6 +115,7 @@ const allNavItems = [
   { to: '/reports', label: 'Reports', icon: BarChart3, roles: [ROLES.ADMIN, ROLES.DENTIST] },
   { to: '/users', label: 'Team', icon: UserCog, roles: [ROLES.ADMIN] },
   { to: '/settings', label: 'Availability', icon: Settings, roles: [ROLES.DENTIST] },
+  { to: '/patient-messages', label: 'Patient messages', icon: MessageCircle, roles: [ROLES.ADMIN, ROLES.DENTIST, ROLES.ASSISTANT] },
 ]
 
 const navItems = computed(() =>

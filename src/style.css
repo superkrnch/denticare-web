@@ -136,6 +136,22 @@ html.theme-transitioning *::after {
     @apply mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end;
   }
 
+  /* Fill viewport below app header; child table scrolls independently. */
+  .page-scroll-layout {
+    @apply flex min-h-0 flex-col overflow-hidden;
+    height: calc(100dvh - 4.75rem - 2rem);
+  }
+
+  @media (min-width: 1024px) {
+    .page-scroll-layout {
+      height: calc(100dvh - 4.75rem - 4rem);
+    }
+  }
+
+  .page-scroll-table {
+    @apply min-h-0 flex-1;
+  }
+
   .section-title {
     @apply text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400;
   }

@@ -9,7 +9,7 @@ import { db } from '@/firebase/config'
 import { COLLECTIONS, QUEUE_STATUS } from '@/constants'
 import {
   notifyStaffPatientCalled,
-} from '@/utils/queueNotify'
+} from '@/utils/notificationSound'
 import { useActivityStore } from './activities'
 
 function todayKey() {
@@ -38,6 +38,8 @@ export const useQueueStore = defineStore('queue', () => {
   }
 
   const currentServing = computed(() => servingItem())
+
+  const waitingCount = computed(() => waitingList().length)
 
   function findActiveEntry(patientId) {
     const today = todayKey()
@@ -247,6 +249,7 @@ export const useQueueStore = defineStore('queue', () => {
   return {
     queueItems,
     currentServing,
+    waitingCount,
     loading,
     subscribeToday,
     unsubscribeQueue,

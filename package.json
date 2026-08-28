@@ -18,7 +18,7 @@
     "setup:backend": "npx -y firebase-tools@latest deploy --only firestore:rules,firestore:indexes --project denticare-app && node scripts/setup-storage.mjs",
     "firebase:deploy": "npx -y firebase-tools@latest deploy --only firestore:rules,firestore:indexes,storage --project denticare-app",
     "functions:install": "npm install --prefix functions",
-    "functions:deploy": "npm run functions:install && npx -y firebase-tools@latest deploy --only functions:onAppointmentStatusChanged,functions:onQueueStatusChanged --project denticare-app --force"
+    "functions:deploy": "npm run functions:install && npx -y firebase-tools@latest deploy --only functions:chatWithDentiCareAI,functions:onAppointmentStatusChanged,functions:onQueueStatusChanged --project denticare-app --force"
   },
   "dependencies": {
     "@lucide/vue": "^1.18.0",
@@ -26,6 +26,7 @@
     "chart.js": "^4.4.8",
     "date-fns": "^4.1.0",
     "firebase": "^11.6.0",
+    "firebase-admin": "^14.2.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.2",
     "pinia": "^3.0.1",

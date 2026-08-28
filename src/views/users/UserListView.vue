@@ -1,10 +1,16 @@
 <template>
-  <div>
-    <div class="page-header">
+  <div class="page-scroll-layout">
+    <div class="page-header shrink-0">
       <button class="btn-primary sm:ml-auto" @click="showModal = true">+ Create Staff Account</button>
     </div>
 
-    <DataTable :columns="columns" :items="users.users" :loading="users.loading">
+    <DataTable
+      class="page-scroll-table"
+      scrollable
+      :columns="columns"
+      :items="users.users"
+      :loading="users.loading"
+    >
       <template #cell-role="{ item }">
         <span class="capitalize">{{ item.role?.replace('_', ' ') }}</span>
       </template>

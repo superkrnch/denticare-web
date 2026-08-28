@@ -1,6 +1,6 @@
 import { format } from 'date-fns'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import {
   collection, doc, getDocs, addDoc, updateDoc, query,
   where, orderBy, serverTimestamp,
@@ -17,6 +17,10 @@ export const useAppointmentsStore = defineStore('appointments', () => {
   const appointments = ref([])
   const loading = ref(false)
   let _unsubscribe = null
+
+  const pendingCount = computed(() =>
+    appointments.value.filter((a) => a.status === APPOINTMENT_STATUS.PENDING).length,
+  )
 
   async function fetchAppointments() {
     loading.value = true
@@ -67,16 +71,21 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     if (_unsubscribe) return
     const toasts = useToastStore()
     const auth = useAuthStore()
+    let isInitial = true
     const q = query(collection(db, COLLECTIONS.APPOINTMENTS), orderBy('date', 'desc'))
     _unsubscribe = onSnapshot(q, (snap) => {
       appointments.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      if (isInitial) {
+        isInitial = false
+        return
+      }
       snap.docChanges().forEach((ch) => {
         if (ch.type === 'added') {
           const d = ch.doc.data()
           // ignore creations by current user
           if (auth.user && d.createdBy && d.createdBy === auth.user.uid) return
           const id = d.appointmentId || ch.doc.id
-          toasts.info(`New appointment ${id} — ${d.patientName || ''}`)
+          toasts.notify(`New appointment ${id} — ${d.patientName || ''}`)
         }
       })
     })
@@ -117,7 +126,8 @@ export const useAppointmentsStore = defineStore('appointments', () => {
   }
 
   return {
-    appointments, loading, fetchAppointments, createAppointment, updateAppointment,
+    appointments, loading, pendingCount, fetchAppointments, createAppointment, updateAppointment,
     updateStatus, checkConflict, getTodayAppointments, getByPatient, filterByStatus,
+    initRealtime, stopRealtime,
   }
 })

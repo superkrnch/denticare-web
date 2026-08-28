@@ -10,15 +10,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <!-- Firebase App Check uses a locally generated debug token during development only. -->
+    <script>
+      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+      }
+    </script>
     <script>
       (function () {
         try {
           var theme = localStorage.getItem('denticare-theme');
           var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          if (theme === 'dark' || (!theme && prefersDark)) {
-            document.documentElement.classList.add('dark');
-            document.documentElement.style.colorScheme = 'dark';
-          }
+          var isDark = theme === 'dark' || (!theme && prefersDark);
+          document.documentElement.classList.toggle('dark', isDark);
+          document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
         } catch (e) {}
       })();
     </script>

@@ -1,10 +1,16 @@
 <template>
-  <div>
-    <div class="page-header">
+  <div class="page-scroll-layout">
+    <div class="page-header shrink-0">
       <button class="btn-primary sm:ml-auto" @click="showModal = true">+ Create Invoice</button>
     </div>
 
-    <DataTable :columns="columns" :items="billing.billings" :loading="billing.loading">
+    <DataTable
+      class="page-scroll-table"
+      scrollable
+      :columns="columns"
+      :items="billing.billings"
+      :loading="billing.loading"
+    >
       <template #cell-patientName="{ item }">{{ item.patientName }}</template>
       <template #cell-totalAmount="{ item }">{{ formatCurrency(item.totalAmount) }}</template>
       <template #cell-paidAmount="{ item }">{{ formatCurrency(item.paidAmount) }}</template>

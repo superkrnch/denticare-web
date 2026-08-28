@@ -1,10 +1,10 @@
 <template>
-  <div>
-    <div class="page-header">
+  <div class="page-scroll-layout">
+    <div class="page-header shrink-0">
       <button class="btn-primary sm:ml-auto" @click="openNew">+ New Appointment</button>
     </div>
 
-    <div class="flex flex-col sm:flex-row gap-3 mb-4">
+    <div class="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row">
       <div class="flex-1"><SearchBar v-model="search" placeholder="Search appointments..." /></div>
       <select v-model="statusFilter" class="input w-full sm:w-44">
         <option value="">All Statuses</option>
@@ -12,7 +12,13 @@
       </select>
     </div>
 
-    <DataTable :columns="columns" :items="filtered" :loading="appointments.loading">
+    <DataTable
+      class="page-scroll-table"
+      scrollable
+      :columns="columns"
+      :items="filtered"
+      :loading="appointments.loading"
+    >
       <template #cell-patientName="{ item }">{{ item.patientName }}</template>
       <template #cell-date="{ item }">{{ formatDate(item.date) }}</template>
       <template #cell-status="{ item }">
@@ -232,10 +238,12 @@ async function handleSubmit() {
     await appointments.fetchAppointments()
     closeModal()
   } catch (e) {
-        <div>
-          <label class="label">Procedure *</label>
-          <ScrollableDropdown v-model="form.serviceType" :items="procedureOptions" labelField="name" valueField="name" />
-        </div>
+    toast.error(e.message)
+  } finally {
+    saving.value = false
+  }
+}
+
 async function updateStatus(id, status) {
   await appointments.updateStatus(id, status)
   await appointments.fetchAppointments()

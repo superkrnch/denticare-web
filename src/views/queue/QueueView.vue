@@ -1,6 +1,6 @@
 <template>
-  <div>
-    <div class="page-header">
+  <div class="page-scroll-layout">
+    <div class="page-header shrink-0">
       <div class="flex flex-wrap gap-2 sm:ml-auto">
         <router-link to="/display/queue" target="_blank" class="btn-secondary">
           Open TV Display
@@ -9,12 +9,12 @@
       </div>
     </div>
 
-    <div v-if="dentist" class="mb-6 card p-4 sm:p-5">
+    <div v-if="dentist" class="card mb-6 shrink-0 p-4 sm:p-5">
       <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dentist</p>
       <p class="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{{ dentistLabel }}</p>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <div class="mb-6 grid shrink-0 grid-cols-1 gap-6 lg:grid-cols-3">
       <div class="card p-6 text-center bg-gradient-to-br from-primary-600 to-primary-700 text-white">
         <p class="text-sm opacity-80">Now Serving</p>
         <p class="text-5xl font-bold mt-2">{{ currentServing?.queueNumber ?? '—' }}</p>
@@ -33,13 +33,15 @@
       </div>
     </div>
 
-    <div class="flex flex-wrap gap-3 mb-4">
+    <div class="mb-4 flex shrink-0 flex-wrap gap-3">
       <button class="btn-teal" :disabled="!waiting.length" @click="handleCallNext">
         Call Next Patient
       </button>
     </div>
 
     <DataTable
+      class="page-scroll-table"
+      scrollable
       :columns="columns"
       :items="queue.queueItems"
       empty-title="Queue is empty"

@@ -43,6 +43,8 @@ const routes = [
       { path: 'reports', name: 'reports', component: () => import('@/views/reports/ReportsView.vue'), meta: { title: 'Reports', subtitle: 'View clinic performance and export data', roles: [ROLES.ADMIN, ROLES.DENTIST] } },
       { path: 'users', name: 'users', component: () => import('@/views/users/UserListView.vue'), meta: { title: 'User Management', subtitle: 'Manage staff accounts and roles', roles: [ROLES.ADMIN] } },
       { path: 'settings', name: 'settings', component: () => import('@/views/settings/SettingsView.vue'), meta: { title: 'My Availability', subtitle: 'Set the days and hours when you are available for appointments', roles: [ROLES.DENTIST] } },
+      { path: 'chat', name: 'chat', component: () => import('@/views/chat/HumanChatPage.vue'), meta: { title: 'Chat with Support' } },
+      { path: 'patient-messages', name: 'patient-messages', component: () => import('@/views/chat/PatientMessagesPage.vue'), meta: { title: 'Patient Messages', roles: [ROLES.ADMIN, ROLES.DENTIST, ROLES.ASSISTANT] } },
     ],
   },
 ]

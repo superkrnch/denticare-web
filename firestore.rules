@@ -216,5 +216,61 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
+
+    match /chat_sessions/{userId}/messages/{messageId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['message', 'sender', 'timestamp'])
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() <= 12000
+        && request.resource.data.sender in ['user', 'ai']
+        && request.resource.data.timestamp == request.time;
+      allow update: if false;
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isChatParticipant(roomId) {
+      return isSignedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/chatRooms/$(roomId)).data.participants;
+    }
+
+    match /chatRooms/{roomId} {
+      allow read: if isStaff() || (isSignedIn() && request.auth.uid in resource.data.participants);
+      allow create: if (
+        isStaff()
+        && request.auth.uid in request.resource.data.participants
+        && request.resource.data.participants is list
+        && request.resource.data.participants.size() == 2
+        && request.resource.data.resolved == false
+      );
+      allow update: if isChatParticipant(roomId)
+        && request.resource.data.participants == resource.data.participants
+        && (
+          (isStaff() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'updatedAt', 'unreadCount', 'resolved']))
+          || (isPatient() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'updatedAt', 'unreadCount']))
+        );
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isStaff() || isChatParticipant(roomId);
+        allow create: if isChatParticipant(roomId)
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 12000
+          && request.resource.data.readBy[request.auth.uid] == true;
+        allow update: if isChatParticipant(roomId)
+          && (
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy'])
+              && request.resource.data.readBy[request.auth.uid] == true)
+            || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hiddenFor'])
+              && request.resource.data.hiddenFor[request.auth.uid] == true)
+          );
+        allow delete: if isAdmin()
+          || (isChatParticipant(roomId) && (isStaff() || resource.data.senderId == request.auth.uid));
+      }
+    }
   }
 }

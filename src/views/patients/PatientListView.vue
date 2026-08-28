@@ -1,10 +1,10 @@
 <template>
-  <div>
-    <div class="page-header">
+  <div class="page-scroll-layout">
+    <div class="page-header shrink-0">
       <router-link to="/patients/new" class="btn-primary sm:ml-auto">+ Add Patient</router-link>
     </div>
 
-    <div class="flex flex-col sm:flex-row gap-3 mb-4">
+    <div class="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row">
       <div class="flex-1">
         <SearchBar v-model="search" placeholder="Search by name, email, or phone..." />
       </div>
@@ -16,7 +16,13 @@
       </select>
     </div>
 
-    <DataTable :columns="columns" :items="paginatedPatients" :loading="patients.loading">
+    <DataTable
+      class="page-scroll-table"
+      scrollable
+      :columns="columns"
+      :items="filtered"
+      :loading="patients.loading"
+    >
       <template #cell-name="{ item }">
         {{ fullName(item) }}
       </template>
@@ -31,10 +37,6 @@
         </div>
       </template>
     </DataTable>
-
-    <div v-if="totalPages > 1" class="mt-4 flex justify-center">
-      <Pagination v-model:current-page="page" :total-pages="totalPages" />
-    </div>
   </div>
 </template>
 
@@ -45,14 +47,11 @@ import { useToastStore } from '@/stores/toast'
 import { fullName } from '@/utils/helpers'
 import SearchBar from '@/components/common/SearchBar.vue'
 import DataTable from '@/components/common/DataTable.vue'
-import Pagination from '@/components/common/Pagination.vue'
 
 const patients = usePatientsStore()
 const toast = useToastStore()
 const search = ref('')
 const sexFilter = ref('')
-const page = ref(1)
-const perPage = 10
 
 const columns = [
   { key: 'name', label: 'Name' },
@@ -66,12 +65,6 @@ const columns = [
 const filtered = computed(() =>
   patients.searchPatients(search.value, { sex: sexFilter.value || undefined }),
 )
-
-const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / perPage)))
-const paginatedPatients = computed(() => {
-  const start = (page.value - 1) * perPage
-  return filtered.value.slice(start, start + perPage)
-})
 
 onMounted(() => patients.fetchPatients())
 
